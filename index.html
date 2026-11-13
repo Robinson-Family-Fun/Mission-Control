@@ -138,7 +138,7 @@ input:focus,textarea:focus{border-color:var(--blue)}
 .prac{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .tip{font-size:14px;color:var(--muted);font-weight:700;margin-top:8px}
 .hidden{display:none}
-</style></head><body><div id="app"></div><div id="modal-root"></div><div class="toasts" id="toasts"></div><canvas id="confetti"></canvas><script type="application/json" id="state">{"v":1,"updatedAt":0,"student":"Eli","classes":[{"id":"perc","name":"Percussion","emoji":"🥁","color":"#ff8a3d"},{"id":"hist","name":"U.S. History","emoji":"🏛️","color":"#ff5c7a"},{"id":"math","name":"Math (Pre-Algebra)","emoji":"🔢","color":"#4cc9f0"},{"id":"sci","name":"Life Science","emoji":"🧬","color":"#3ddc97"},{"id":"eng","name":"English","emoji":"📚","color":"#b48cff"}],"items":[],"checkins":{},"practice":{},"practiceGoal":90,"xp":0,"spent":0,"rewards":[{"id":"r1","name":"30 min extra screen time","cost":100,"emoji":"🎮"},{"id":"r2","name":"Pick what's for dinner","cost":150,"emoji":"🍕"},{"id":"r3","name":"Skip one chore","cost":200,"emoji":"🧹"},{"id":"r4","name":"$5 to spend","cost":300,"emoji":"💵"},{"id":"r5","name":"Stay up 30 min late (weekend)","cost":250,"emoji":"🌙"}],"requests":[],"badges":{},"pin":null,"focusCount":0}</script><script id="appjs">
+</style></head><body><div id="app"></div><div id="modal-root"></div><div class="toasts" id="toasts"></div><canvas id="confetti"></canvas><script type="application/json" id="state">{"v":1,"updatedAt":0,"student":"Eli","classes":[{"id":"perc","name":"Percussion","emoji":"🥁","color":"#ff8a3d"},{"id":"hist","name":"U.S. History","emoji":"🏛️","color":"#ff5c7a"},{"id":"math","name":"Math (Pre-Algebra)","emoji":"🔢","color":"#4cc9f0"},{"id":"sci","name":"Life Science","emoji":"🧬","color":"#3ddc97"},{"id":"eng","name":"English","emoji":"📚","color":"#b48cff"}],"items":[],"checkins":{},"practice":{},"practiceGoal":90,"xp":0,"spent":0,"rewards":[{"id":"r1","name":"30 min extra screen time","cost":100,"emoji":"🎮"},{"id":"r2","name":"Pick what's for dinner","cost":150,"emoji":"🍕"},{"id":"r3","name":"Skip one chore","cost":200,"emoji":"🧹"},{"id":"r4","name":"$5 to spend","cost":300,"emoji":"💵"},{"id":"r5","name":"Stay up 30 min late (weekend)","cost":250,"emoji":"🌙"}],"requests":[],"badges":{},"pin":null,"focusCount":0,"reading":{},"readingGoal":20,"book":""}</script><script id="appjs">
 (function(){
 "use strict";
 var LS_KEY="eli-mission-control-v1";
@@ -146,6 +146,7 @@ var S=JSON.parse(document.getElementById("state").textContent);
 var STORAGE_OK=(function(){try{localStorage.setItem("__t","1");localStorage.removeItem("__t");return true}catch(e){return false}})();
 var dirty=false, ART=null, SAMPLE=null, syncMode="starting";
 try{var loc=JSON.parse(localStorage.getItem(LS_KEY)||"null");if(loc&&loc.updatedAt>S.updatedAt){S=loc;dirty=true;}}catch(e){}
+if(!S.reading)S.reading={};if(!S.readingGoal)S.readingGoal=20;if(S.book==null)S.book="";
 var ui={tab:"today",cls:null,modal:null,ci:null,focus:null,quiz:null};
 var TYPES=[["homework","Homework","📝"],["classwork","Classwork","✍️"],["reading","Reading","📖"],["quiz","Quiz","❓"],["formative","Formative","🎯"],["test","Test / Summative","🧪"],["project","Project","🛠️"]];
 var TYPE_XP={homework:10,classwork:10,reading:10,quiz:15,formative:15,test:25,project:30};
@@ -245,19 +246,33 @@ var BADGES=[
  ["early","🐦","Early Bird","Finish something 2+ days early"],
  ["round","🌍","Well Rounded","Finish work in all 5 classes"],
  ["drum","🥁","Drum Machine","90+ practice min in a week"],
+ ["read5","🔖","Reading Week","Hit your reading goal 5 days in one week"],
+ ["read7","📚","Bookworm","7-day reading streak"],
+ ["read30","🐉","Book Dragon","30-day reading streak"],
  ["quiz","🤓","Quiz Whiz","100% on a Quiz Me"],
  ["focus","⏱️","Laser Focus","Complete 5 focus timers"],
  ["clean","✨","Clean Sweep","Finish a mission with 0 overdue"]];
 function earn(id){if(S.badges[id])return;S.badges[id]=today();var b=BADGES.find(function(x){return x[0]===id});
   setTimeout(function(){toast("🏆 Badge unlocked: "+b[1]+" "+b[2]+"!");confetti(140);},700);S.xp+=25;}
 function weekPractice(){var t=today(),m=0;for(var i=0;i<7;i++){m+=S.practice[addDays(t,-i)]||0}return m;}
+function readToday(){return S.reading[today()]||0}
+function readHit(d){return (S.reading[d]||0)>=S.readingGoal}
+function readStreak(){var d=today(),c=0;if(!readHit(d))d=addDays(d,-1);while(readHit(d)&&c<999){c++;d=addDays(d,-1);}return c}
+function readWeekDays(){var t=today(),ws=addDays(t,-dowMon(t)),n=0;for(var k=0;k<7;k++){if(readHit(addDays(ws,k)))n++;}return n}
+function readWeekMin(){var t=today(),m=0;for(var i=0;i<7;i++){m+=S.reading[addDays(t,-i)]||0}return m}
+function readingHTML(){var td=readToday(),g=S.readingGoal,pct=Math.min(100,Math.round(100*td/g)),t=today(),ws=addDays(t,-dowMon(t));
+  var days='';for(var k=0;k<7;k++){var d=addDays(ws,k),hit=readHit(d),fut=d>t;days+='<div class="d '+(d===t?"today":"")+'"><div>'+wkName(d)+'</div><div class="n" style="font-size:24px">'+(hit?"✅":fut?"·":(S.reading[d]?"📖":"—"))+'</div><div style="font-size:12px">'+(S.reading[d]?S.reading[d]+"m":"")+'</div></div>';}
+  return '<div class="ready"><span style="font-size:16px">Today: <b style="color:var(--text)">'+td+' / '+g+' min</b> '+(td>=g?"🎉":"")+'</span><span>📚 Reading streak: '+readStreak()+' day'+(readStreak()===1?"":"s")+'</span></div><div class="bar planet-bar" style="--c:#b48cff;height:16px"><i style="width:'+pct+'%"></i></div>'+
+  '<div class="prac" style="margin-top:12px">'+(td<g?'<button class="btn sm primary" data-a="readtimer">⏱️ Start '+(g-td)+'-min reading timer</button>':'')+[5,10,15,20].map(function(m){return '<button class="btn sm" data-a="read" data-v="'+m+'">+'+m+' min</button>'}).join("")+(td?'<button class="btn sm bad" data-a="readundo">Undo today</button>':'')+'</div>'+
+  '<div class="strip" style="margin-top:14px">'+days+'</div>'+
+  '<div class="prac" style="margin-top:12px"><span class="tip" style="margin:0">Reading now:</span><input id="book" maxlength="80" placeholder="Book title" style="flex:1;min-width:160px;padding:9px 12px" value="'+esc(S.book)+'"><button class="btn sm" data-a="book">Save</button></div>';}
 function checkBadges(){var st=streak();var done=S.items.filter(function(i){return i.done});
   if(Object.keys(S.checkins).some(function(k){return S.checkins[k]===true}))earn("liftoff");
   if(st>=3)earn("streak3");if(st>=5)earn("streak5");if(st>=10)earn("streak10");if(st>=20)earn("streak20");
   if(done.length>=10)earn("hw10");if(done.length>=25)earn("hw25");if(done.length>=50)earn("hw50");
   if(done.some(function(i){return i.doneAt&&diff(i.doneAt,i.due)>=2}))earn("early");
   var cs={};done.forEach(function(i){cs[i.classId]=1});if(Object.keys(cs).length>=5)earn("round");
-  if(weekPractice()>=90)earn("drum");if(S.focusCount>=5)earn("focus");
+  if(weekPractice()>=90)earn("drum");if(readWeekDays()>=5)earn("read5");var rs=readStreak();if(rs>=7)earn("read7");if(rs>=30)earn("read30");if(S.focusCount>=5)earn("focus");
   if(S.items.some(function(i){return i.steps&&i.steps.length&&i.steps.every(function(s){return s.done})}))earn("ready");}
 
 /* ---------- derived lists ---------- */
@@ -302,6 +317,7 @@ function nudges(){var t=today(),out=[],ov=overdue(),hour=new Date().getHours();
     out.push(["yellow","🧪",cls(i.classId).name+" "+typeInfo(i.type)[1].toLowerCase()+" "+(n===1?"TOMORROW":"in "+n+" days")+": "+(left?left+" study step"+(left>1?"s":"")+" left. You've got this!":"study plan complete — get some sleep! 😎")]);}});
   var tn=tonight().length;
   if(hour>=20&&tn)out.push(["yellow","⏰","It's getting late — "+tn+" thing"+(tn>1?"s":"")+" still due next school day. Finish up and pack your bag!"]);
+  if(hour>=18&&readToday()<S.readingGoal)out.push(["blue","📖","Don't forget your "+S.readingGoal+" minutes of reading"+(readToday()?" — "+(S.readingGoal-readToday())+" to go!":" today!")+(S.book?" ("+S.book+")":"")]);
   if(dow(t)===5)out.push(["blue","🎒","Friday tip: check Schoology for Monday's work now so Sunday night stays chill."]);
   if(tn&&!ov.length&&S.checkins[t]&&hour<20)out.push(["blue","💪",tn+" thing"+(tn>1?"s":"")+" to finish for "+(diff(t,nextSchool(t))===1?"tomorrow":wkName(nextSchool(t),true))+". Start with the hardest one — then you're free!"]);
   if(!ov.length&&!tn&&(S.checkins[t]||isWeekend(t)))out.push(["green","🎉",pick(["All clear for tomorrow! Get ahead on something or practice percussion.","Mission accomplished. Your future self says thanks!","Nothing due tomorrow — great time for 15 min of review."])]);
@@ -312,8 +328,9 @@ function viewToday(){var t=today(),h=nudges();
   var tl=tonight(),sts=stepsToday(),ga=getAhead();
   var ns=nextSchool(t),nsName=diff(t,ns)===1?"tomorrow":wkName(ns,true);
   h+='<div class="card"><h2>🎯 Tonight\'s Mission <small>due by '+esc(nsName)+'</small></h2>';
-  if(!tl.length&&!sts.length)h+='<div class="empty">Nothing due for '+esc(nsName)+'. Nice! Tap + if you got new homework.</div>';
+  if(!tl.length&&!sts.length)h+='<div class="empty">No homework due for '+esc(nsName)+'. Nice! Tap + if you got new homework.</div>';
   h+=tl.map(itemRow).join("")+sts.map(stepRow).join("");
+  var rt=readToday();h+='<div class="row-item '+(rt>=S.readingGoal?"done":"")+'" style="--c:#b48cff"><span class="chk">'+(rt>=S.readingGoal?"✓":"")+'</span><div class="body"><div class="title">📖 Read for '+S.readingGoal+' minutes</div><div class="sub"><span>'+rt+' / '+S.readingGoal+' min today'+(S.book?' · '+esc(S.book):'')+'</span></div></div>'+(rt<S.readingGoal?'<button class="btn sm" data-a="readtimer">⏱️ Start</button>':'')+'</div>';
   var doneToday=S.items.filter(function(i){return i.done&&i.doneAt===t});
   if(doneToday.length)h+='<div class="lbl">Finished today 🎉</div>'+doneToday.map(itemRow).join("");
   h+='</div>';
@@ -323,7 +340,8 @@ function viewToday(){var t=today(),h=nudges();
   if(!ut.length)h+='<div class="empty">No tests or quizzes on the radar. When a teacher announces one, tap + and pick Test, Quiz or Formative — you\'ll get a study plan automatically.</div>';
   else h+='<div class="tests">'+ut.map(testCard).join("")+'</div>';
   h+='</div>';
-  h+='<div class="grid2"><div class="card"><h2>⏱️ Focus Timer</h2>'+focusHTML()+'</div><div class="card"><h2>🥁 Percussion Practice</h2>'+practiceHTML()+'</div></div>';
+  h+='<div class="card"><h2>📖 Daily Reading <small>goal: '+S.readingGoal+' min a day</small></h2>'+(ui.focus&&ui.focus.running&&ui.focus.kind==="read"?focusHTML():readingHTML())+'</div>';
+  h+='<div class="grid2"><div class="card"><h2>⏱️ Focus Timer</h2>'+(ui.focus&&ui.focus.running&&ui.focus.kind==="read"?'<div class="tip">📖 Reading timer is running in the Daily Reading card.</div>':focusHTML())+'</div><div class="card"><h2>🥁 Percussion Practice</h2>'+practiceHTML()+'</div></div>';
   h+=weekStrip();
   return h;}
 
@@ -332,7 +350,7 @@ function testCard(i){var c=cls(i.classId),n=diff(today(),i.due),st=i.steps||[],d
   return '<div class="tcard" style="--c:'+c.color+'" data-a="open" data-id="'+i.id+'"><div class="cd">'+(n===0?"TODAY":n)+(n?' <small>day'+(n===1?"":"s")+'</small>':'')+'</div><div class="t">'+c.emoji+' '+esc(i.title)+'</div><div class="ready"><span>'+typeInfo(i.type)[2]+' '+typeInfo(i.type)[1]+' · '+esc(wkName(i.due))+' '+esc(nice(i.due))+'</span><span>'+cf+'</span></div><div class="bar planet-bar"><i style="width:'+pct+'%"></i></div><div class="ready" style="margin-top:4px"><span>Study plan</span><span>'+d+'/'+st.length+' steps</span></div></div>';}
 
 function focusHTML(){var f=ui.focus;
-  if(f&&f.running){var left=Math.max(0,Math.round((f.end-Date.now())/1000));return '<div class="focus"><div class="clock" id="clock">'+Math.floor(left/60)+':'+pad(left%60)+'</div><button class="btn bad sm" data-a="focusstop">Stop</button></div><div class="tip">Phone away, one task only. You\'ve got this! 💪</div>';}
+  if(f&&f.running){var left=Math.max(0,Math.round((f.end-Date.now())/1000));return '<div class="focus"><div class="clock" id="clock">'+Math.floor(left/60)+':'+pad(left%60)+'</div><button class="btn bad sm" data-a="focusstop">Stop</button></div><div class="tip">'+(f.kind==="read"?"📖 Reading time — minutes are logged automatically when the timer ends.":"Phone away, one task only. You\'ve got this! 💪")+'</div>';}
   return '<div class="tip" style="margin:0 0 10px">Pick a timer, work on ONE thing until it rings. +5 XP each time.</div><div class="prac">'+[10,15,20,25].map(function(m){return '<button class="btn sm" data-a="focus" data-v="'+m+'">'+m+' min</button>'}).join("")+'</div><div class="tip">Completed: '+S.focusCount+' focus sessions</div>';}
 function practiceHTML(){var wk=weekPractice(),g=S.practiceGoal||90,pct=Math.min(100,Math.round(100*wk/g)),td=S.practice[today()]||0;
   return '<div class="ready"><span>This week: '+wk+' / '+g+' min</span><span>Today: '+td+' min</span></div><div class="bar planet-bar" style="--c:#ff8a3d"><i style="width:'+pct+'%"></i></div><div class="prac" style="margin-top:12px">'+[10,15,20,30].map(function(m){return '<button class="btn sm" data-a="prac" data-v="'+m+'">+'+m+' min</button>'}).join("")+(td?'<button class="btn sm bad" data-a="pracundo">Undo</button>':'')+'</div>';}
@@ -382,7 +400,7 @@ function viewTrophies(){var h='<div class="grid2"><div class="card"><h2>🪙 Rew
   h+='</div><div class="card"><h2>📈 Your Stats</h2>';
   var done=S.items.filter(function(i){return i.done}).length,ck=Object.keys(S.checkins).filter(function(k){return S.checkins[k]===true}).length;
   var lv=levelOf(S.xp);
-  h+='<div class="reward"><span class="re">⭐</span><span class="rn">Level '+lv.n+' '+esc(lv.name)+'<br><span class="tip">'+(lv.next-S.xp)+' XP to next level</span></span></div><div class="reward"><span class="re">✅</span><span class="rn">'+done+' assignments finished</span></div><div class="reward"><span class="re">🛰️</span><span class="rn">'+ck+' Daily Mission'+(ck===1?'':'s')+' completed</span></div><div class="reward"><span class="re">🔥</span><span class="rn">'+streak()+'-day streak</span></div><div class="reward"><span class="re">🥁</span><span class="rn">'+weekPractice()+' practice minutes this week</span></div></div></div>';
+  h+='<div class="reward"><span class="re">⭐</span><span class="rn">Level '+lv.n+' '+esc(lv.name)+'<br><span class="tip">'+(lv.next-S.xp)+' XP to next level</span></span></div><div class="reward"><span class="re">✅</span><span class="rn">'+done+' assignments finished</span></div><div class="reward"><span class="re">🛰️</span><span class="rn">'+ck+' Daily Mission'+(ck===1?'':'s')+' completed</span></div><div class="reward"><span class="re">🔥</span><span class="rn">'+streak()+'-day streak</span></div><div class="reward"><span class="re">📖</span><span class="rn">'+readWeekMin()+' reading minutes this week · '+readStreak()+'-day reading streak</span></div><div class="reward"><span class="re">🥁</span><span class="rn">'+weekPractice()+' practice minutes this week</span></div></div></div>';
   h+='<div class="card"><h2>🏆 Badges <small>'+Object.keys(S.badges).length+'/'+BADGES.length+' unlocked</small></h2><div class="badges">'+BADGES.map(function(b){var got=S.badges[b[0]];return '<div class="badge '+(got?"got":"locked")+'"><div class="bi">'+b[1]+'</div><b>'+b[2]+'</b><span>'+b[3]+'</span></div>'}).join("")+'</div></div>';
   return h;}
 
@@ -431,6 +449,7 @@ function mCheckin(d){var ci=ui.ci;var step=ci.step;
     h+='<h2>🚀 Step 3: Tonight\'s game plan<button class="x" data-a="close">✕</button></h2>';
     if(!tl.length&&!sts.length)h+='<div class="nudge green"><span class="e">🎉</span><span>Nothing due tomorrow and no study steps today. Free evening — or get ahead!</span></div>';
     else h+='<div class="tip" style="margin:-6px 0 12px">Here\'s what to do tonight. Start with the hardest one first! 💪</div>'+tl.map(function(i){var c=cls(i.classId);return '<div class="ci-class" style="--c:'+c.color+'"><span class="em">'+c.emoji+'</span><span class="nm">'+esc(i.title)+'<br><span class="tip">'+dueLabel(i).t+'</span></span></div>'}).join("")+sts.map(function(o){var c=cls(o.it.classId);return '<div class="ci-class" style="--c:'+c.color+'"><span class="em">🧠</span><span class="nm">'+esc(o.s.label)+'<br><span class="tip">for '+esc(o.it.title)+'</span></span></div>'}).join("");
+    if(readToday()<S.readingGoal)h+='<div class="ci-class" style="--c:#b48cff"><span class="em">📖</span><span class="nm">Read for '+S.readingGoal+' minutes<br><span class="tip">'+(S.book?esc(S.book):'any book you like')+'</span></span></div>';
     h+='<div class="actions"><button class="btn" data-a="ci-back">← Back</button><button class="btn primary" data-a="ci-done">Mission accepted! (+20 XP)</button></div>';}
   return h;}
 
@@ -443,13 +462,13 @@ function mParent(d){
   var t=today(),ws=addDays(t,-dowMon(t)),h='<h2>🔓 Parent Zone<button class="x" data-a="close">✕</button></h2>';
   var wkCk=0,wkDays=0;for(var k=0;k<=dowMon(t)&&k<5;k++){var dd=addDays(ws,k);wkDays++;if(S.checkins[dd])wkCk++;}
   var wkDone=S.items.filter(function(i){return i.done&&i.doneAt&&i.doneAt>=ws}).length,ov=overdue();
-  h+='<div class="lbl">This week</div><div class="plan"><div>🛰️ Daily Missions: <b>'+wkCk+' of '+wkDays+'</b> school days</div><div>✅ Assignments finished: <b>'+wkDone+'</b></div><div>🥁 Practice: <b>'+weekPractice()+' min</b> (goal '+S.practiceGoal+')</div><div>⚠️ Due today/overdue: <b>'+ov.length+'</b>'+(ov.length?' — '+ov.map(function(i){return esc(cls(i.classId).emoji+" "+i.title)}).join(", "):'')+'</div></div>';
+  h+='<div class="lbl">This week</div><div class="plan"><div>🛰️ Daily Missions: <b>'+wkCk+' of '+wkDays+'</b> school days</div><div>✅ Assignments finished: <b>'+wkDone+'</b></div><div>📖 Reading: goal met <b>'+readWeekDays()+' of '+(dowMon(t)+1)+'</b> days this week · '+readWeekMin()+' min in last 7 days'+(S.book?' · '+esc(S.book):'')+'</div><div>🥁 Practice: <b>'+weekPractice()+' min</b> (goal '+S.practiceGoal+')</div><div>⚠️ Due today/overdue: <b>'+ov.length+'</b>'+(ov.length?' — '+ov.map(function(i){return esc(cls(i.classId).emoji+" "+i.title)}).join(", "):'')+'</div></div>';
   var ut=upcomingTests();if(ut.length)h+='<div class="lbl">Upcoming assessments</div><div class="plan">'+ut.map(function(i){var st=i.steps||[];return '<div>'+cls(i.classId).emoji+' '+esc(i.title)+' — '+esc(wkName(i.due))+' '+esc(nice(i.due))+' · study '+st.filter(function(s){return s.done}).length+'/'+st.length+' '+(["","😟","😐","😎"][i.confidence||0])+'</div>'}).join("")+'</div>';
   var pend=S.requests.filter(function(r){return r.status==="pending"});
   h+='<div class="lbl">Reward requests</div>'+(pend.length?pend.map(function(r){return '<div class="reward"><span class="rn">'+esc(r.name)+' <span class="tip">🪙 '+r.cost+'</span></span><button class="btn sm good" data-a="req" data-id="'+r.id+'" data-v="approved">Approve</button><button class="btn sm bad" data-a="req" data-id="'+r.id+'" data-v="denied">Deny</button></div>'}).join(""):'<div class="empty">None waiting.</div>');
   h+='<div class="lbl">Bonus coins</div><div class="prac">'+[10,25,50,100].map(function(n){return '<button class="btn sm" data-a="bonus" data-v="'+n+'">+'+n+'</button>'}).join("")+'<button class="btn sm bad" data-a="bonus" data-v="-25">−25</button></div>';
   h+='<div class="lbl">Rewards (edit name, coin cost)</div>'+S.rewards.map(function(r){return '<div class="reward"><input style="width:62px;padding:8px" data-r="emoji" data-id="'+r.id+'" value="'+esc(r.emoji)+'"><input data-r="name" data-id="'+r.id+'" value="'+esc(r.name)+'"><input style="width:90px" type="number" min="1" data-r="cost" data-id="'+r.id+'" value="'+r.cost+'"><button class="btn sm bad" data-a="rdel" data-id="'+r.id+'">✕</button></div>'}).join("")+'<div class="prac"><button class="btn sm" data-a="radd">+ Add reward</button><button class="btn sm primary" data-a="rsave">Save rewards</button></div>';
-  h+='<div class="lbl">Settings</div><div class="prac"><span>Weekly practice goal (min)</span><input id="p-goal" type="number" style="width:100px" value="'+S.practiceGoal+'"><button class="btn sm" data-a="goal">Save</button></div><div class="prac" style="margin-top:8px"><button class="btn sm" data-a="newpin">Change PIN</button><button class="btn sm" data-a="markoff">Mark today “No school” (keeps streak)</button></div>';
+  h+='<div class="lbl">Settings</div><div class="prac"><span>Weekly practice goal (min)</span><input id="p-goal" type="number" style="width:100px" value="'+S.practiceGoal+'"><button class="btn sm" data-a="goal">Save</button></div><div class="prac" style="margin-top:8px"><span>Daily reading goal (min)</span><input id="p-rgoal" type="number" style="width:100px" value="'+S.readingGoal+'"><button class="btn sm" data-a="rgoal">Save</button></div><div class="prac" style="margin-top:8px"><button class="btn sm" data-a="newpin">Change PIN</button><button class="btn sm" data-a="markoff">Mark today “No school” (keeps streak)</button></div>';
   h+='<div class="lbl">Backup</div><div class="tip">Everything is saved only on this iPad. Copy a backup code every week or two and paste it into a note or an email to yourself. To restore (or move to a new device), paste it below.</div>'+(!S.lastBackup||diff(S.lastBackup,today())>14?'<div class="nudge yellow" style="margin-top:8px"><span class="e">💾</span><span>'+(S.lastBackup?"Last backup was "+nice(S.lastBackup)+" — time for a new one.":"No backup yet — make one now.")+'</span></div>':'')+'<div class="prac" style="margin-top:8px"><button class="btn sm" data-a="backup">📋 Copy backup</button></div><textarea id="p-restore" rows="2" placeholder="Paste backup code here to restore" style="margin-top:8px"></textarea><div class="prac" style="margin-top:8px"><button class="btn sm bad" data-a="restore">Restore from backup</button></div>';
   return h;}
 
@@ -468,9 +487,9 @@ function startQuiz(id){}
 
 /* ---------- focus timer ---------- */
 var focusInt=null;
-function startFocus(min){ui.focus={running:true,end:Date.now()+min*60000,min:min};clearInterval(focusInt);
+function startFocus(min,kind){ui.focus={running:true,end:Date.now()+min*60000,min:min,kind:kind||"focus"};clearInterval(focusInt);
   focusInt=setInterval(function(){var f=ui.focus;if(!f)return;var left=Math.round((f.end-Date.now())/1000);
-    if(left<=0){clearInterval(focusInt);ui.focus=null;S.focusCount++;award(5,"focus session done!");confetti(100);save();if(!ui.modal)render();return;}
+    if(left<=0){clearInterval(focusInt);var fk=ui.focus.kind,fm=ui.focus.min;ui.focus=null;if(fk==="read"){S.reading[today()]=(S.reading[today()]||0)+fm;award(fm,"reading time logged 📖");if(readToday()>=S.readingGoal)toast("📚 Reading goal done for today!");}else{S.focusCount++;award(5,"focus session done!");}confetti(100);save();if(!ui.modal)render();return;}
     var el=$("#clock");if(el)el.textContent=Math.floor(left/60)+":"+pad(left%60);},500);render();}
 
 /* ---------- actions ---------- */
@@ -518,6 +537,11 @@ document.addEventListener("click",function(e){var el=e.target.closest("[data-a]"
   case "prac":var m=+v;S.practice[today()]=(S.practice[today()]||0)+m;award(m,"practice logged 🥁");save();render();break;
   case "pracundo":var tdm=S.practice[today()]||0;S.xp=Math.max(0,S.xp-tdm);delete S.practice[today()];save();render();break;
   case "focus":startFocus(+v);break;
+  case "readtimer":startFocus(Math.max(5,S.readingGoal-readToday()),"read");window.scrollTo(0,0);break;
+  case "read":var rm=+v;S.reading[today()]=(S.reading[today()]||0)+rm;award(rm,"reading logged 📖");if(readToday()>=S.readingGoal&&readToday()-rm<S.readingGoal){toast("📚 Reading goal done for today!");confetti(120);}save();render();break;
+  case "readundo":var rtm=S.reading[today()]||0;S.xp=Math.max(0,S.xp-rtm);delete S.reading[today()];save();render();break;
+  case "book":S.book=($("#book").value||"").trim().slice(0,80);save();toast("📚 Book saved");render();break;
+  case "rgoal":S.readingGoal=Math.max(5,parseInt($("#p-rgoal").value)||20);save();toast("Reading goal saved");renderModal();break;
   case "focusstop":clearInterval(focusInt);ui.focus=null;render();if(dirty)schedulePublish(2000);break;
   case "quiz":startQuiz(id);break;
   case "qa":var qq=ui.quiz.qs[+el.getAttribute("data-q")];qq.pick=+v;if(qq.pick===qq.answer){award(3,"correct!");}
